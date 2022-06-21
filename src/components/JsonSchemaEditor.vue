@@ -28,6 +28,13 @@
               </template>
               全选
             </n-tooltip>
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-checkbox v-model:checked="checked" size="large">
+                </n-checkbox>
+              </template>
+              必填
+            </n-tooltip>
           </div>
         </n-gi>
       </n-grid>
@@ -91,10 +98,22 @@
   </n-grid>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { CaretDown, CaretForward, SettingsOutline, Add, Remove } from '@vicons/ionicons5'
 import { NGrid, NGi, NButton, NInput, NCheckbox, NSelect, NIcon, NTooltip, NSpace } from 'naive-ui'
 import { ref } from 'vue'
+
+
+const displayNodeChild = ref(true)
+
+const nodeName = ref("")
+
+const nodeRequired = ref(false)
+const nodeChildAllRequired = ref(false)
+
+const nodeTypeSelect = ref("")
+
+const nodeTitle = ref("")
 
 const options = [
   {
@@ -105,9 +124,9 @@ const options = [
   {
     label: 'Drive My Car',
     value: 'song1'
-  },];
+  },]
 
-let checked = ref(false);
+let checked = ref(false)
 </script>
 
 <style scoped>
@@ -125,6 +144,7 @@ let checked = ref(false);
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: space-around;
   margin-left: 5px;
 }
 
