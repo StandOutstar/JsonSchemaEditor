@@ -30,7 +30,10 @@ const tree = reactive({  // 关键在于源头没有使用 响应式
         "type": "object",
         "title": "embedObject",
         "properties": {
-          "key": "value"
+          "key": {
+            "type": "string",
+            "title": "key"
+          }
         }
       }
     }

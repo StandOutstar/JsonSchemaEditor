@@ -239,6 +239,7 @@ export default defineComponent({
       }
     },
     onChangeName() {
+      if (this.nodeName == this.nodeInputName) return
       this.$emit('updateName', { oldKey: this.nodeName, newKey: this.nodeInputName })
     },
     handleInputName(namePair) {
