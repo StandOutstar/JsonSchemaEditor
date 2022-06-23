@@ -76,7 +76,7 @@
           </n-tooltip>
           <n-tooltip trigger="hover">
             <template #trigger>
-              <n-button text>
+              <n-button text @click="addChild">
                 <template #icon>
                   <n-icon size="20">
                     <add />
@@ -206,6 +206,7 @@ export default defineComponent({
     return {
       TYPE_NAME,
       hidden: false,
+      countAdd: 1,
     }
   },
   computed: {
@@ -270,7 +271,23 @@ export default defineComponent({
         delete this.nodeValue.properties
       }
       this.nodeValue.type = this.nodeType
-    }
+    },
+    _joinName() {
+      return `field_${this.deep}_${this.countAdd++}`
+    },
+    addChild() {
+      if (this.nodeValue.type !== 'object') {
+        return
+      }
+
+      const name = this._joinName()
+      const type = 'string'
+      if (this.nodeValue.properties === undefined) {
+        this.nodeValue.properties = {}
+      }
+
+      this.nodeValue.properties[name] = { type: type }
+    },
   }
 })
 </script>
