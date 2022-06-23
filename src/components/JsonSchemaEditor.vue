@@ -3,7 +3,7 @@
     <n-gi span="8">
       <n-grid :cols="8">
         <n-gi span="7">
-          <div class="nodeHead" :style="{ paddingLeft: `${20 * deepth}px` }">
+          <div :style="{ paddingLeft: `${20 * deepth}px` }">
             <n-grid :cols="7">
               <n-gi span="1">
                 <div class="downCollapse">
@@ -19,7 +19,7 @@
               </n-gi>
               <n-gi span="6">
                 <div class="nameInput">
-                  <n-input type="text" placeholder="node name" v-model:value="nodeName" />
+                  <n-input type="text" placeholder="node name" v-model:value="nodeInputName" @blur="onChangeName" />
                 </div>
               </n-gi>
             </n-grid>
@@ -27,28 +27,31 @@
         </n-gi>
         <n-gi span="1">
           <div class="checkbox">
-            <n-tooltip trigger="hover" v-if="root">
-              <template #trigger>
-                <n-checkbox size="large" @update:checked="onRootCheck">
-                </n-checkbox>
-              </template>
-              <span>全选</span>
-            </n-tooltip>
-            <n-tooltip trigger="hover" v-else>
-              <template #trigger>
-                <n-checkbox :checked="checked" size="large" @update:checked="onCheck">
-                </n-checkbox>
-              </template>
-              <span>必填</span>
-              <!-- 对应 required -->
-            </n-tooltip>
+            <n-space>
+              <n-tooltip trigger="hover">
+                <template #trigger>
+                  <n-checkbox size="large" @update:checked="onNodeCheckAll" :disabled="!nodeIsObject">
+                  </n-checkbox>
+                </template>
+                <span>全选</span>
+              </n-tooltip>
+              <n-tooltip trigger="hover">
+                <template #trigger>
+                  <n-checkbox :checked="nodeChecked" size="large" @update:checked="onChildNodeCheck" :disabled="root">
+                  </n-checkbox>
+                </template>
+                <span>必填</span>
+                <!-- 对应 required -->
+              </n-tooltip>
+            </n-space>
+
           </div>
         </n-gi>
       </n-grid>
     </n-gi>
     <n-gi span="2">
       <div class="typeSelect">
-        <n-select :options="typeOptions" v-model:value="nodeValue.type" @update:value="onChangeType" />
+        <n-select :options="typeOptions" v-model:value="nodeValue.type" @update:value="" />
       </div>
     </n-gi>
     <n-gi span="4">
@@ -100,25 +103,26 @@
     </n-gi>
   </n-grid>
 
-  <template v-if="!hidden && nodeValue.properties && !isArray">
+  <template v-if="!hidden && nodeValue.properties && !nodeIsArray">
     <json-schema-editor v-for="(item, key, index) in nodeValue.properties" :value="{ [key]: item }" :parent="nodeValue"
-      :key="index" :deepth="deepth + 1" :root="false" :lang="lang" :custom="custom" />
+      :key="key" :deepth="deepth + 1" :root="false" @update-key-required="handleChildNodeCheck"
+      @update-name="handleInputName" />
   </template>
-  <template v-if="isArray">
-    <json-schema-editor :value="{ items: nodeValue.items }" :deepth="deepth + 1" disabled isItem :root="false"
-      :lang="lang" :custom="custom" />
+  <template v-if="nodeIsArray">
+    <json-schema-editor :value="{ items: nodeValue.items }" :deepth="deepth + 1" disabled isItem :root="false" />
   </template>
 </template>
 
 <script lang="ts">
 import { TYPE_NAME, TYPE } from './type/type'
 import { isNull } from './util';
-import LocalProvider from './LocalProvider';
-import { defineComponent, ref } from 'vue';
+// import LocalProvider from './LocalProvider';
+import { defineComponent, ref, toRefs, computed } from 'vue';
 import { CaretDown, CaretForward, SettingsOutline, Add, Remove } from '@vicons/ionicons5'
 import { NGrid, NGi, NButton, NInput, NCheckbox, NSelect, NIcon, NTooltip, NSpace } from 'naive-ui'
 
 export default defineComponent({
+  emits: ['updateKeyRequired', 'updateName'],
   components: {
     CaretDown, CaretForward, SettingsOutline, Add, Remove,
     NGrid, NGi, NButton, NInput, NCheckbox, NSelect, NIcon, NTooltip, NSpace
@@ -152,213 +156,110 @@ export default defineComponent({
       type: Object,
       default: null
     },
-    custom: { //enable custom properties
-      type: Boolean,
-      default: false
-    },
-    lang: { // i18n language
-      type: String,
-      default: 'zh_CN'
-    }
   },
   setup(props) {
+    let typeOptions = TYPE_NAME.map((value, index) => {
+      return {
+        label: value,
+        value: value,
+      }
+    })
+
+    let { value, parent } = toRefs(props)
+
+    let nodeValue = Object.values(value.value)[0]
+
+    const nodeIsObject = computed(() => {
+      return nodeValue.type === 'object'
+    })
+
+    const nodeIsArray = computed(() => {
+      return nodeValue.type === 'array'
+    })
+
+    let nodeName = Object.keys(props.value)[0]
+
+    const nodeChecked = computed(() => {
+      let checked = parent.value && parent.value.required && parent.value.required.indexOf(nodeName) >= 0
+      if (checked) {
+        return true
+      } else {
+        return false
+      }
+    })
+
+
+    const nodeInputName = ref(nodeName)
+    return {
+      typeOptions,
+      nodeValue,
+      nodeIsObject,
+      nodeIsArray,
+      nodeChecked,
+      nodeName,
+      nodeInputName
+    }
   },
   data() {
     return {
       TYPE_NAME,
       hidden: false,
-      countAdd: 1,
-      modalVisible: false,
-      advancedValue: {},
-      addProp: {},// 自定义属性
-      customProps: [],
-      customing: false,
-      local: LocalProvider(this.lang),
-      typeOptions: TYPE_NAME.map((value, index) => {
-        return {
-          label: value,
-          value: value,
-        }
-      }),
-      nodeValue: Object.values(this.value)[0],
-      nodeName: Object.keys(this.value)[0],
     }
   },
   computed: {
-
-    isObject() {
-      return this.nodeValue.type === 'object'
-    },
-    isArray() {
-      return this.nodeValue.type === 'array'
-    },
-    checked() {
-      let checked = this.parent && this.parent.required && this.parent.required.indexOf(this.nodeName) >= 0
-      console.log('node checked: ', this.parent, this.nodeValue, checked)
-      return checked ? true : false
-    },
-    advanced() {
-      return TYPE[this.nodeValue.type]
-    },
-    advancedAttr() {
-      return TYPE[this.nodeValue.type].attr
-    },
-    advancedNotEmptyValue() {
-      const jsonNode = Object.assign({}, this.advancedValue);
-      for (let key in jsonNode) {
-        isNull(jsonNode[key]) && delete jsonNode[key]
-      }
-      return jsonNode
-    },
-    completeNodeValue() {
-      const t = {}
-      for (const item of this.customProps) {
-        t[item.key] = item.value
-      }
-      return Object.assign({}, this.nodeValue, this.advancedNotEmptyValue, t)
-    }
   },
   methods: {
-    parseCustomProps() {
-      const ownProps = ['type', 'title', 'properties', 'items', ...Object.keys(this.advancedAttr)]
-      Object.keys(this.nodeValue).forEach(key => {
-        ownProps.indexOf(key) === -1 && this.confirmAddCustomNode({ key: key, value: this.nodeValue[key] })
-      })
+    // 通过事件的方式通知父组件更新
+    onChildNodeCheck(checked) {
+      this.$emit('updateKeyRequired', { checked: checked, key: this.nodeName })
     },
-    onInputName(e) {
-      const oldKey = this.nodeName
-      const newKey = e.target.value
-      if (oldKey === newKey) return
-      const nodeValue = this.parent.properties[oldKey]
-      // 替换key名
-      this.$delete(this.parent.properties, oldKey)
-      this.$set(this.parent.properties, newKey, nodeValue)
-      // required重新设置
-      const requireds = this.parent.required || []
+    handleChildNodeCheck(nodeCheck) {
+      const { checked, key } = nodeCheck
+      if (this.nodeValue.required === undefined) {
+        this.nodeValue.required = []
+      }
+      const nameIndex = this.nodeValue.required.indexOf(key)
+      if (checked) {
+        if (nameIndex === -1) {
+          this.nodeValue.required.push(key)
+        }
+      } else {
+        if (nameIndex !== -1) {
+          this.nodeValue.required.splice(nameIndex, 1)
+        }
+      }
+    },
+    onNodeCheckAll(checked) {
+      if (this.nodeValue.type === 'object' && this.nodeValue.properties) {
+        checked ? this.nodeValue.required = Object.keys(this.nodeValue.properties) : this.nodeValue.required = undefined
+
+      } else if (this.nodeValue.type === 'array' && this.nodeValue.items.type === 'object') {
+        checked ? this.nodeValue.items.required = Object.keys(this.nodeValue.items.properties) : this.nodeValue.items.required = undefined
+        Object.keys(this.nodeValue.items.properties).forEach(key => this.onNodeCheckAll(checked, this.nodeValue.items.properties[key]))
+      }
+    },
+    onChangeName() {
+      this.$emit('updateName', { oldKey: this.nodeName, newKey: this.nodeInputName })
+    },
+    handleInputName(namePair) {
+      console.log('handle name input: ', namePair)
+      const { oldKey, newKey } = namePair
+      if (oldKey === newKey) {
+        return
+      }
+
+      // 替换 key 名
+      const nodeValue = this.nodeValue.properties[oldKey]
+      this.nodeValue.properties[newKey] = nodeValue
+      delete this.nodeValue.properties[oldKey]
+
+      // 替换 required
+      const requireds = this.nodeValue.required || []
       const oldIndex = requireds.indexOf(oldKey)
       if (requireds.length > 0 && oldIndex > -1) {
         requireds.splice(oldIndex, 1)
         requireds.push(newKey)
-        this.$set(this.parent, 'required', [...new Set(requireds)])
-      }
-    },
-    onChangeType() {
-      this.parseCustomProps()
-      // 删除自定义属性
-      this.customProps.forEach(item => {
-        this.nodeValue[item.key] = undefined
-        //this.$delete(this.nodeValue, item.key)
-      })
-
-      this.customProps = [];
-      this.nodeValue.properties = undefined
-      this.nodeValue.items = undefined
-      this.nodeValue.required = undefined
-      this.nodeValue.format = undefined
-      this.nodeValue.enum = undefined
-      // this.$delete(this.nodeValue, 'properties')
-      // this.$delete(this.nodeValue, 'items')
-      // this.$delete(this.nodeValue, 'required')
-      // this.$delete(this.nodeValue, 'format')
-      // this.$delete(this.nodeValue, 'enum')
-      if (this.isArray) {
-        //this.$set(this.nodeValue, 'items', { type: 'string' })
-        this.nodeValue.items = { type: 'string' }
-      }
-    },
-    changeEnumValue(e) {
-      const pickType = this.nodeValue.type
-      const value = e.target.value
-      var arr = value.split('\n')
-      if (arr.length === 0) return
-      this.advancedValue.enum = arr.map(item => pickType === 'string' ? item : +item)
-    },
-    onCheck(checked: boolean) {
-      this._checked(checked, this.parent)
-    },
-    onRootCheck(checked: boolean) {
-      this._deepCheck(checked, this.nodeValue)
-    },
-    _deepCheck(checked: boolean, node) {
-      if (node.type === 'object' && node.properties) {
-        checked ? node.required = Object.keys(node.properties) : node.required = undefined
-        Object.keys(node.properties).forEach(key => this._deepCheck(checked, node.properties[key]))
-
-      } else if (node.type === 'array' && node.items.type === 'object') {
-        checked ? node.items.required = Object.keys(node.items.properties) : node.items.required = undefined
-        Object.keys(node.items.properties).forEach(key => this._deepCheck(checked, node.items.properties[key]))
-      }
-      console.log('deepcheck object node: ', checked, node)
-    },
-    _checked(checked, parent) {
-      let required = parent.required
-      if (checked) {
-        required || Object.defineProperty(this.parent, 'required', {
-          value: [],
-          writable: true
-        })
-        required = this.parent.required
-
-        required.indexOf(this.nodeName) === -1 && required.push(this.nodeName)
-        console.log('parent required: ', required)
-      } else {
-        const pos = required.indexOf(this.nodeName)
-        pos >= 0 && required.splice(pos, 1)
-      }
-      if (required.length === 0) {
-        parent.required = undefined;
-      }
-    },
-    addChild() {
-      const name = this._joinName()
-      const type = 'string'
-      const node = this.nodeValue
-      node.properties || this.$set(node, 'properties', {})
-      const props = node.properties
-      this.$set(props, name, { type: type })
-    },
-    addCustomNode() {
-      this.$set(this.addProp, 'key', this._joinName())
-      this.$set(this.addProp, 'value', '')
-      this.customing = true
-    },
-    confirmAddCustomNode(prop) {
-      const p = prop || this.addProp
-      this.customProps.push(p)
-      this.addProp = {}
-      this.customing = false
-    },
-    removeNode() {
-      const { properties, required } = this.parent
-      this.$delete(properties, this.nodeName)
-      if (required) {
-        const pos = required.indexOf(this.nodeName)
-        pos >= 0 && required.splice(pos, 1)
-        required.length === 0 && this.$delete(this.parent, 'required')
-      }
-    },
-    _joinName() {
-      return `field_${this.deep}_${this.countAdd++}`
-    },
-    onSetting() {
-      this.modalVisible = true
-      this.advancedValue = { ...this.advanced.value }
-      for (const k in this.advancedValue) {
-        if (this.nodeValue[k]) this.advancedValue[k] = this.nodeValue[k]
-      }
-      this.parseCustomProps()
-    },
-    handleOk() {
-      this.modalVisible = false
-      for (const key in this.advancedValue) {
-        if (isNull(this.advancedValue[key])) {
-          this.$delete(this.nodeValue, key)
-        } else {
-          this.$set(this.nodeValue, key, this.advancedValue[key])
-        }
-      }
-      for (const item of this.customProps) {
-        this.$set(this.nodeValue, item.key, item.value)
+        Object.assign(this.nodeValue.required, requireds)
       }
     }
   }
@@ -375,7 +276,6 @@ export default defineComponent({
   margin-right: 5px;
 }
 
-.nodeHead {}
 
 .checkbox {
   height: 100%;

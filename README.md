@@ -83,3 +83,14 @@
 ## changelog
 
 2022-06-20 15:31:58 添加需要的元素并完成基本布局。
+
+## 问题
+
+1. 解决树状数据更新子节点不更新
+
+https://stackoverflow.com/questions/70481376/vue3-blocks-tree-does-not-reload-when-changing-the-data?rq=1
+
+数据应该是 reactive 的，然后去修改。
+
+其他数据不更新的情形：
+https://blog.csdn.net/eagle89/article/details/124035016

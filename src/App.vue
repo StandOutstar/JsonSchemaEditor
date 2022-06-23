@@ -4,8 +4,9 @@
 import HelloWorld from './components/HelloWorld.vue'
 import HellowNaive from './components/HellowNaive.vue';
 import JsonSchemaEditor from './components/JsonSchemaEditor.vue'
+import { reactive, watchEffect } from 'vue'
 
-const tree = {
+const tree = reactive({  // 关键在于源头没有使用 响应式
   "root": {
     "type": "object",
     "title": "条件",
@@ -24,10 +25,19 @@ const tree = {
         "type": "string",
         "title": "创建日期",
         "format": "date"
+      },
+      "embedObject": {
+        "type": "object",
+        "title": "embedObject",
+        "properties": {
+          "key": "value"
+        }
       }
     }
   }
-}
+})
+
+watchEffect(() => console.log('update tree: ', tree))
 
 </script>
 
