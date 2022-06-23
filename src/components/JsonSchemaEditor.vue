@@ -88,7 +88,7 @@
           </n-tooltip>
           <n-tooltip trigger="hover">
             <template #trigger>
-              <n-button text>
+              <n-button text @click="onRemoveNode">
                 <template #icon>
                   <n-icon size="20">
                     <remove />
@@ -106,7 +106,7 @@
   <template v-if="!hidden && nodeValue.properties && !nodeIsArray">
     <json-schema-editor v-for="(item, key, index) in nodeValue.properties" :value="{ [key]: item }" :parent="nodeValue"
       :key="key" :deepth="deepth + 1" :root="false" @update-key-required="handleChildNodeCheck"
-      @update-name="handleInputName" />
+      @update-name="handleInputName" @remove-node="handleRemoveNode" />
   </template>
   <template v-if="nodeIsArray">
     <json-schema-editor :value="{ items: nodeValue.items }" :deepth="deepth + 1" disabled isItem :root="false" />
@@ -122,7 +122,7 @@ import { CaretDown, CaretForward, SettingsOutline, Add, Remove } from '@vicons/i
 import { NGrid, NGi, NButton, NInput, NCheckbox, NSelect, NIcon, NTooltip, NSpace } from 'naive-ui'
 
 export default defineComponent({
-  emits: ['updateKeyRequired', 'updateName'],
+  emits: ['updateKeyRequired', 'updateName', 'removeNode'],
   components: {
     CaretDown, CaretForward, SettingsOutline, Add, Remove,
     NGrid, NGi, NButton, NInput, NCheckbox, NSelect, NIcon, NTooltip, NSpace
@@ -273,7 +273,7 @@ export default defineComponent({
       this.nodeValue.type = this.nodeType
     },
     _joinName() {
-      return `field_${this.deep}_${this.countAdd++}`
+      return `field_${this.deepth}_${this.countAdd++}`
     },
     addChild() {
       if (this.nodeValue.type !== 'object') {
@@ -287,6 +287,18 @@ export default defineComponent({
       }
 
       this.nodeValue.properties[name] = { type: type }
+    },
+    onRemoveNode() {
+      this.$emit('removeNode', this.nodeName)
+    },
+    handleRemoveNode(nodeKey) {
+      delete this.nodeValue.properties[nodeKey]
+      const requireds = this.nodeValue.required || []
+      const oldIndex = requireds.indexOf(nodeKey)
+      if (requireds.length > 0 && oldIndex > -1) {
+        requireds.splice(oldIndex, 1)
+        Object.assign(this.nodeValue.required, requireds)
+      }
     },
   }
 })
