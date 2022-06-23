@@ -51,7 +51,7 @@
     </n-gi>
     <n-gi span="2">
       <div class="typeSelect">
-        <n-select :options="typeOptions" v-model:value="nodeValue.type" @update:value="" />
+        <n-select :options="typeOptions" v-model:value="nodeType" @update:value="onChangeType" />
       </div>
     </n-gi>
     <n-gi span="4">
@@ -190,6 +190,7 @@ export default defineComponent({
 
 
     const nodeInputName = ref(nodeName)
+    const nodeType = ref(nodeValue.type)
     return {
       typeOptions,
       nodeValue,
@@ -197,7 +198,8 @@ export default defineComponent({
       nodeIsArray,
       nodeChecked,
       nodeName,
-      nodeInputName
+      nodeInputName,
+      nodeType
     }
   },
   data() {
@@ -262,6 +264,12 @@ export default defineComponent({
         requireds.push(newKey)
         Object.assign(this.nodeValue.required, requireds)
       }
+    },
+    onChangeType() {
+      if (this.nodeValue.type === 'object') {
+        delete this.nodeValue.properties
+      }
+      this.nodeValue.type = this.nodeType
     }
   }
 })
